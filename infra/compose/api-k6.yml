@@ -1,0 +1,35 @@
+version: "3.8"
+
+networks:
+  analyzer_monitor_net:
+    external: true
+  test_net:
+    driver: bridge
+
+services:
+  api:
+    image: iamdudumon/my-nest-app
+    container_name: test-api
+    ports:
+      - "80:3000"
+    mem_limit: ${MEM:-128m}
+    cpus: ${CPU:-0.25}
+    networks:
+      - analyzer_monitor_net
+
+  k6:
+    image: grafana/k6
+    container_name: k6
+    ports:
+      - "6565:6565"
+    depends_on:
+      - api
+    volumes:
+      - ../testharness/:/src
+    entrypoint: ["sh", "-c"]
+    command: >
+      "until wget -qO- http://test-api:3000/boards; do echo 'waiting for api...'; sleep 1; done; k6 run -o experimental-prometheus-rw /src/k6_script.test.ts"
+    environment:
+      - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
+    networks:
+      - analyzer_monitor_net
