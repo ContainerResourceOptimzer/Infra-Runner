@@ -1,21 +1,32 @@
 version: "3.8"
 
 networks:
-  analyzer_monitor_net:
+  compose_monitor_net:
     external: true
-  test_net:
-    driver: bridge
 
 services:
   api:
     image: iamdudumon/my-nest-app
     container_name: test-api
     ports:
-      - "80:3000"
-    mem_limit: ${MEM:-128m}
-    cpus: ${CPU:-0.25}
+      - "3000:3000"
+    env_file: .env
+    depends_on:
+      - postgres
     networks:
-      - analyzer_monitor_net
+      - compose_monitor_net
+
+  postgres:
+    image: postgres
+    container_name: postgres-container
+    environment:
+      POSTGRES_USER: nestuser
+      POSTGRES_PASSWORD: nestpass
+      POSTGRES_DB: nestdb
+    ports:
+      - "5432:5432"
+    networks:
+      - compose_monitor_net
 
   k6:
     image: grafana/k6
@@ -25,11 +36,11 @@ services:
     depends_on:
       - api
     volumes:
-      - ../testharness/:/src
+      - ./testharness/:/src
     entrypoint: ["sh", "-c"]
     command: >
       "until wget -qO- http://test-api:3000/boards; do echo 'waiting for api...'; sleep 1; done; k6 run -o experimental-prometheus-rw /src/k6_script.test.ts"
     environment:
       - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
     networks:
-      - analyzer_monitor_net
+      - compose_monitor_net
