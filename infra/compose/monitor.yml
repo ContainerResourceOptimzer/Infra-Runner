@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -24,6 +24,18 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --web.enable-remote-write-receiver
+    networks:
+      - monitor_net
+
+  postgres:
+    image: postgres
+    container_name: postgres-container
+    environment:
+      POSTGRES_USER: nestuser
+      POSTGRES_PASSWORD: nestpass
+      POSTGRES_DB: nestdb
+    ports:
+      - "5432:5432"
     networks:
       - monitor_net
 

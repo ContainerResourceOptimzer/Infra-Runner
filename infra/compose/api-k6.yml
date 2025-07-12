@@ -7,39 +7,33 @@ networks:
 services:
   api:
     image: iamdudumon/my-nest-app
-    container_name: test-api
     ports:
-      - "3000:3000"
+      - "${API_PORT:-3000}:3000"
     env_file: .env
-    depends_on:
-      - postgres
-    networks:
-      - compose_monitor_net
-
-  postgres:
-    image: postgres
-    container_name: postgres-container
-    environment:
-      POSTGRES_USER: nestuser
-      POSTGRES_PASSWORD: nestpass
-      POSTGRES_DB: nestdb
-    ports:
-      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: "${CPU:-0.5}"
+          memory: "${MEM:-512M}"
+        reservations:
+          cpus: "1.0"
+          memory: 1024M
     networks:
       - compose_monitor_net
 
   k6:
     image: grafana/k6
-    container_name: k6
-    ports:
-      - "6565:6565"
     depends_on:
       - api
     volumes:
       - ./testharness/:/src
     entrypoint: ["sh", "-c"]
-    command: >
-      "until wget -qO- http://test-api:3000/boards; do echo 'waiting for api...'; sleep 1; done; k6 run -o experimental-prometheus-rw /src/k6_script.test.ts"
+    command:
+      - >
+        until wget --quiet --spider http://api:3000/boards; do
+          echo 'waiting for api…'; sleep 1;
+        done;
+        k6 run -o experimental-prometheus-rw /src/k6_script.test.ts
     environment:
       - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
     networks:
