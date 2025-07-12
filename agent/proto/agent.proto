@@ -1,0 +1,19 @@
+// proto/runner_agent.proto
+
+syntax = "proto3";
+package runner;
+
+service RunnerAgent {
+  rpc RunExperiment(RunExperimentRequest) returns (RunExperimentResponse);
+}
+
+message RunExperimentRequest {
+  string job_id = 1;
+  double cpu = 2;
+  string mem = 3;
+}
+
+message RunExperimentResponse {
+  bool success = 1;
+  string message = 2;
+}
