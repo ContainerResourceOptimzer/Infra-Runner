@@ -5,6 +5,7 @@ package runner;
 
 service RunnerAgent {
   rpc RunExperiment(RunExperimentRequest) returns (RunExperimentResponse);
+  rpc RunMonitor(RunMonitorRequest) returns (RunMonitorResponse);
 }
 
 message RunExperimentRequest {
@@ -14,6 +15,13 @@ message RunExperimentRequest {
 }
 
 message RunExperimentResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RunMonitorRequest {}
+
+message RunMonitorResponse {
   bool success = 1;
   string message = 2;
 }

@@ -65,6 +65,26 @@ const handlers = {
 			console.error(`Experiment ${jobId} error:`, e.stderr || e.message);
 		}
 	},
+
+	runMonitor: async (call: any, callback: any) => {
+		const env: NodeJS.ProcessEnv = {
+			...process.env,
+		};
+
+		console.log(
+			`Run Monitor Container` +
+				"\n" +
+				`docker compose -f ${process.env.MONITOR_COMPOSE_FILE} up -d`
+		);
+		await sh(`docker compose -f ${process.env.MONITOR_COMPOSE_FILE} up -d`, {
+			env,
+		});
+
+		callback(null, {
+			success: true,
+			message: `Run Monitor Container.`,
+		});
+	},
 };
 
 export function main() {
