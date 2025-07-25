@@ -33,6 +33,7 @@ const handlers = {
 			CPU: cpu,
 			MEM: mem,
 			API_PORT: (++apiPort).toString(),
+			JOB_ID: jobId,
 		};
 
 		console.log(
