@@ -1,31 +1,13 @@
-// src/app.ts
+// client.ts
 
-import * as grpc from "@grpc/grpc-js";
-import * as protoLoader from "@grpc/proto-loader";
-
-import dotenv from "dotenv";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 
 const sh = promisify(exec);
 
-dotenv.config();
-
-// ESM 환경에서 __dirname 정의
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Proto 파일 경로 설정
-const PROTO_PATH = join(__dirname, "./proto/agent.proto");
-const packageDef = protoLoader.loadSync(PROTO_PATH, {});
-const loadedProto: any = grpc.loadPackageDefinition(packageDef);
-const runnerService = loadedProto.runner.RunnerAgent.service;
-
 let apiPort: number = 3000;
 
-const handlers = {
+export const grpcServiceHandlers = {
 	runExperiment: async (call: any, callback: any) => {
 		const { jobId, cpu, mem } = call.request;
 		const env: NodeJS.ProcessEnv = {
@@ -87,24 +69,3 @@ const handlers = {
 		});
 	},
 };
-
-export function main() {
-	const server = new grpc.Server();
-	server.addService(runnerService, handlers);
-
-	const port = process.env.PORT || "50051";
-	server.bindAsync(
-		`0.0.0.0:${port}`,
-		grpc.ServerCredentials.createInsecure(),
-		(err, bindPort) => {
-			if (err) {
-				console.error("gRPC bind error:", err);
-				return;
-			}
-			server.start();
-			console.log(`Runner-Agent listening on port ${bindPort}`);
-		}
-	);
-}
-
-main();

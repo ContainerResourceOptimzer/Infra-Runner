@@ -6,7 +6,7 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node --loader ts-node/esm --no-warnings app.ts"
+    "dev": "node --loader ts-node/esm --no-warnings src/app.ts"
   },
   "keywords": [],
   "author": "",
