@@ -6,24 +6,26 @@ import { promisify } from "util";
 const sh = promisify(exec);
 
 let apiPort: number = 3000;
+let jobId = 1;
 
 export const grpcServiceHandlers = {
 	runExperiment: async (call: any, callback: any) => {
-		const { jobId, cpu, mem } = call.request;
+		const { expId, cpu, mem } = call.request;
 		const env: NodeJS.ProcessEnv = {
 			...process.env,
 			CPU: cpu,
 			MEM: mem,
-			API_PORT: (++apiPort).toString(),
-			JOB_ID: jobId,
+			API_PORT: apiPort.toString(),
+			EXP_ID: expId,
+			JOB_ID: "job-" + jobId.toString(),
 		};
 
 		console.log(
-			`Run Experiment [${jobId} (${cpu}, ${mem}) PORT: ${apiPort - 1}]`
+			`Run Experiment(${expId}): [${jobId} (${cpu}, ${mem}) PORT: ${apiPort}]`
 		);
 		const compose = (cmd: string) =>
 			sh(
-				`docker compose --compatibility -f ${process.env.DEFAULT_COMPOSE_FILE} -p ${jobId} ${cmd}`,
+				`docker compose --compatibility -f ${process.env.DEFAULT_COMPOSE_FILE} -p job-${jobId} ${cmd}`,
 				{ env }
 			);
 
@@ -41,9 +43,12 @@ export const grpcServiceHandlers = {
 			console.log(`[${jobId}] stack cleaned up`);
 
 			callback(null, {
+				jobId: "job-" + jobId,
 				success: exitCode === 0,
-				message: `Experiment [${jobId} (${cpu}, ${mem}) PORT: ${apiPort}] started`,
 			});
+
+			apiPort++;
+			jobId++;
 		} catch (e: any) {
 			console.error(`Experiment ${jobId} error:`, e.stderr || e.message);
 		}

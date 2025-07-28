@@ -13,11 +13,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "${CPU:-0.5}"
-          memory: "${MEM:-512M}"
+          cpus: "${CPU:-1.0}"
+          memory: "${MEM:-1024M}"
         reservations:
-          cpus: "1.0"
-          memory: 1024M
+          cpus: "0.5"
+          memory: 512M
     networks:
       - compose_monitor_net
 
@@ -36,5 +36,7 @@ services:
         k6 run -o experimental-prometheus-rw /src/k6_script.test.ts
     environment:
       - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
+      - JOB_ID=${JOB_ID}
+      - EXP_ID=${EXP_ID}
     networks:
       - compose_monitor_net
