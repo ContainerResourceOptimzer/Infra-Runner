@@ -5,12 +5,23 @@ import { promisify } from "util";
 
 const sh = promisify(exec);
 
+const experimentConfigs = new Map();
 let apiPort: number = 3000;
 let jobId = 1;
 
 export const grpcServiceHandlers = {
-	runExperiment: async (call: any, callback: any) => {
+	runJob: async (call: any, callback: any) => {
 		const { expId, cpu, mem } = call.request;
+
+		if (!experimentConfigs.get(expId)?.testApiImage) {
+			console.log("Error: Run Experiment, Not Exist Experiment Configs");
+			callback(null, {
+				jobId: "null",
+				success: false,
+			});
+			return;
+		}
+
 		const env: NodeJS.ProcessEnv = {
 			...process.env,
 			CPU: cpu,
@@ -18,6 +29,9 @@ export const grpcServiceHandlers = {
 			API_PORT: apiPort.toString(),
 			EXP_ID: expId,
 			JOB_ID: "job-" + jobId.toString(),
+			TEST_API_IMAGE: experimentConfigs.get(expId).testApiImage,
+			HTTP_REQ_DURATION: experimentConfigs.get(expId).httpReqDuration,
+			HTTP_REQS: experimentConfigs.get(expId).httpReqs,
 		};
 
 		console.log(
@@ -70,7 +84,19 @@ export const grpcServiceHandlers = {
 
 		callback(null, {
 			success: true,
-			message: `Run Monitor Container.`,
+			message: "Run Monitor Container.",
+		});
+	},
+
+	initExperimentConfigs: async (call: any, callback: any) => {
+		const { expId, testApiImage, httpReqDuration, httpReqs } = call.request;
+		console.log(expId);
+		experimentConfigs.set(expId, { testApiImage, httpReqDuration, httpReqs });
+		console.log(`Init Experiment(${expId}) Configs.`);
+
+		callback(null, {
+			success: true,
+			message: "Init Experiment Configs.",
 		});
 	},
 };
