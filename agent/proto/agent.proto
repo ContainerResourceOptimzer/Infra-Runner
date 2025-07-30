@@ -1,22 +1,22 @@
-// proto/runner_agent.proto
+// proto/agent.proto
 
 syntax = "proto3";
 package runner;
 
 service RunnerAgent {
-  rpc RunExperiment(RunExperimentRequest) returns (RunExperimentResponse);
+  rpc RunJob(RunExperimentRequest) returns (RunExperimentResponse);
   rpc RunMonitor(RunMonitorRequest) returns (RunMonitorResponse);
 }
 
-message RunExperimentRequest {
-  string job_id = 1;
+message RunJobRequest {
+  string exp_id = 1;
   double cpu = 2;
   string mem = 3;
 }
 
-message RunExperimentResponse {
-  bool success = 1;
-  string message = 2;
+message RunJobResponse {
+  string job_id = 1;
+  bool success = 2;
 }
 
 message RunMonitorRequest {}

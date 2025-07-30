@@ -9,7 +9,7 @@ let apiPort: number = 3000;
 let jobId = 1;
 
 export const grpcServiceHandlers = {
-	runExperiment: async (call: any, callback: any) => {
+	runJob: async (call: any, callback: any) => {
 		const { expId, cpu, mem } = call.request;
 		const env: NodeJS.ProcessEnv = {
 			...process.env,
