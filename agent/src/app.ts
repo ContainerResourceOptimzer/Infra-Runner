@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
-import {grpcServiceHandlers} from "./grpc/client.js"
+import { grpcServiceHandlers } from "./grpc/client.js";
 
 dotenv.config();
 

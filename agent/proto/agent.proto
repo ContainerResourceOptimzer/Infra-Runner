@@ -4,8 +4,9 @@ syntax = "proto3";
 package runner;
 
 service RunnerAgent {
-  rpc RunJob(RunExperimentRequest) returns (RunExperimentResponse);
+  rpc RunJob(RunJobRequest) returns (RunJobResponse);
   rpc RunMonitor(RunMonitorRequest) returns (RunMonitorResponse);
+  rpc InitExperimentConfigs(ExperimentConfigsRequest) returns (ExperimentConfigsResponse);
 }
 
 message RunJobRequest {
@@ -22,6 +23,18 @@ message RunJobResponse {
 message RunMonitorRequest {}
 
 message RunMonitorResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ExperimentConfigsRequest {
+  string exp_id = 1;
+  string test_api_image = 2;
+  int32 http_req_duration = 3;
+  int32 http_reqs = 4;
+}
+
+message ExperimentConfigsResponse {
   bool success = 1;
   string message = 2;
 }
