@@ -6,7 +6,7 @@ networks:
 
 services:
   api:
-    image: iamdudumon/my-nest-app
+    image: ${TEST_API_IMAGE}
     ports:
       - "${API_PORT:-3000}:3000"
     env_file: .env
@@ -33,9 +33,11 @@ services:
         until wget --quiet --spider http://api:3000/boards; do
           echo 'waiting for api…'; sleep 1;
         done;
-        k6 run -o experimental-prometheus-rw /src/k6_script.test.ts
+        k6 run -o experimental-prometheus-rw /src/k6_script.test.js
     environment:
       - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
+      - HTTP_REQ_DURATION=${HTTP_REQ_DURATION:-3000}
+      - HTTP_REQS=${HTTP_REQS:-10000}
       - JOB_ID=${JOB_ID}
       - EXP_ID=${EXP_ID}
     networks:
