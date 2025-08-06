@@ -2,12 +2,14 @@
 
 import { exec } from "child_process";
 import { promisify } from "util";
+import { Mutex } from "async-mutex";
 
 const sh = promisify(exec);
+const mutex = new Mutex();
 
 const experimentConfigs = new Map();
 let apiPort: number = 3000;
-let jobId = 1;
+let jobId: number = 1;
 
 export const grpcServiceHandlers = {
 	runJob: async (call: any, callback: any) => {
@@ -22,24 +24,30 @@ export const grpcServiceHandlers = {
 			return;
 		}
 
+		const { currentJobId, currentApiPort } = await mutex.runExclusive(() => {
+			const jobIdToUse = jobId++;
+			const apiPortToUse = apiPort++;
+			return { currentJobId: jobIdToUse, currentApiPort: apiPortToUse };
+		});
+
 		const env: NodeJS.ProcessEnv = {
 			...process.env,
 			CPU: cpu,
 			MEM: mem,
-			API_PORT: apiPort.toString(),
+			API_PORT: currentApiPort.toString(),
 			EXP_ID: expId,
-			JOB_ID: "job-" + jobId.toString(),
+			JOB_ID: "job-" + currentJobId.toString(),
 			TEST_API_IMAGE: experimentConfigs.get(expId).testApiImage,
 			HTTP_REQ_DURATION: experimentConfigs.get(expId).httpReqDuration,
 			HTTP_REQS: experimentConfigs.get(expId).httpReqs,
 		};
 
 		console.log(
-			`Run Experiment(${expId}): [${jobId} (${cpu}, ${mem}) PORT: ${apiPort}]`
+			`Run Experiment(${expId}): [${currentJobId} (${cpu}, ${mem}) PORT: ${currentApiPort}]`
 		);
 		const compose = (cmd: string) =>
 			sh(
-				`docker compose --compatibility -f ${process.env.DEFAULT_COMPOSE_FILE} -p job-${jobId} ${cmd}`,
+				`docker compose --compatibility -f ${process.env.DEFAULT_COMPOSE_FILE} -p job-${currentJobId} ${cmd}`,
 				{ env }
 			);
 
@@ -54,17 +62,14 @@ export const grpcServiceHandlers = {
 
 			// 3) 테스트 끝났으니 스택 정리
 			await compose("down -v");
-			console.log(`[${jobId}] stack cleaned up`);
+			console.log(`[${currentJobId}] stack cleaned up`);
 
 			callback(null, {
-				jobId: "job-" + jobId,
+				jobId: "job-" + currentJobId,
 				success: exitCode === 0,
 			});
-
-			apiPort++;
-			jobId++;
 		} catch (e: any) {
-			console.error(`Experiment ${jobId} error:`, e.stderr || e.message);
+			console.error(`Experiment ${currentJobId} error:`, e.stderr || e.message);
 		}
 	},
 
