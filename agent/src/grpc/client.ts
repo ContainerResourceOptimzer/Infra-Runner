@@ -1,8 +1,11 @@
-// client.ts
+// grpc/client.ts
 
 import { exec } from "child_process";
 import { promisify } from "util";
 import { Mutex } from "async-mutex";
+
+import { httpServiceHandlers } from "../http/client.js";
+import { JobResult } from "../http/types.js";
 
 const sh = promisify(exec);
 const mutex = new Mutex();
@@ -64,9 +67,17 @@ export const grpcServiceHandlers = {
 			await compose("down -v");
 			console.log(`[${currentJobId}] stack cleaned up`);
 
+			const jobReslt: JobResult =
+				await httpServiceHandlers.queryJobResultFromPrometheus(
+					expId,
+					"job-" + currentJobId.toString()
+				);
+
 			callback(null, {
 				jobId: "job-" + currentJobId,
 				success: exitCode === 0,
+				totalReqs: jobReslt.totalReqs,
+				duurationAvg: jobReslt.duurationAvg,
 			});
 		} catch (e: any) {
 			console.error(`Experiment ${currentJobId} error:`, e.stderr || e.message);
