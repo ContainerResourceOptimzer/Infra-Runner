@@ -4,21 +4,23 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { Mutex } from "async-mutex";
 
-import { httpServiceHandlers } from "../http/client.js";
 import { JobResult } from "../http/types.js";
+
+import { httpServiceHandlers } from "../http/client.js";
+import { analyzer } from "../analyzer.js";
 
 const sh = promisify(exec);
 const mutex = new Mutex();
 
 const experimentConfigs = new Map();
-let apiPort: number = 3000;
 let jobId: number = 1;
 
 export const grpcServiceHandlers = {
 	runJob: async (call: any, callback: any) => {
 		const { expId, cpu, mem } = call.request;
+		const experimentConfig = experimentConfigs.get(expId);
 
-		if (!experimentConfigs.get(expId)?.testApiImage) {
+		if (!experimentConfig?.testApiImage) {
 			console.log("Error: Run Experiment, Not Exist Experiment Configs");
 			callback(null, {
 				jobId: "null",
@@ -27,27 +29,23 @@ export const grpcServiceHandlers = {
 			return;
 		}
 
-		const { currentJobId, currentApiPort } = await mutex.runExclusive(() => {
+		const { currentJobId } = await mutex.runExclusive(() => {
 			const jobIdToUse = jobId++;
-			const apiPortToUse = apiPort++;
-			return { currentJobId: jobIdToUse, currentApiPort: apiPortToUse };
+			return { currentJobId: jobIdToUse };
 		});
 
 		const env: NodeJS.ProcessEnv = {
 			...process.env,
 			CPU: cpu,
 			MEM: mem,
-			API_PORT: currentApiPort.toString(),
 			EXP_ID: expId,
 			JOB_ID: "job-" + currentJobId.toString(),
-			TEST_API_IMAGE: experimentConfigs.get(expId).testApiImage,
-			HTTP_REQ_DURATION: experimentConfigs.get(expId).httpReqDuration,
-			HTTP_REQS: experimentConfigs.get(expId).httpReqs,
+			TEST_API_IMAGE: experimentConfig.testApiImage,
+			HTTP_REQ_DURATION: experimentConfig.httpReqDuration,
+			HTTP_REQS: experimentConfig.httpReqs,
 		};
 
-		console.log(
-			`Run Experiment(${expId}): [${currentJobId} (${cpu}, ${mem}) PORT: ${currentApiPort}]`
-		);
+		console.log(`Run Experiment(${expId}): [${currentJobId} (${cpu}, ${mem})]`);
 		const compose = (cmd: string) =>
 			sh(
 				`docker compose --compatibility -f ${process.env.DEFAULT_COMPOSE_FILE} -p job-${currentJobId} ${cmd}`,
@@ -72,15 +70,21 @@ export const grpcServiceHandlers = {
 					expId,
 					"job-" + currentJobId.toString()
 				);
-
+			// console.log(jobReslt);
 			callback(null, {
 				jobId: "job-" + currentJobId,
-				success: exitCode === 0,
+				success: true,
 				totalReqs: jobReslt.totalReqs,
-				duurationAvg: jobReslt.duurationAvg,
+				durationAvg: jobReslt.durationAvg,
+				failedRate: jobReslt.failedRate,
+				thresholdsPassed: analyzer.analyzeJobResult(experimentConfig, jobReslt),
 			});
 		} catch (e: any) {
 			console.error(`Experiment ${currentJobId} error:`, e.stderr || e.message);
+			callback(null, {
+				jobId: "null",
+				success: false,
+			});
 		}
 	},
 

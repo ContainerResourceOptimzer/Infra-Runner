@@ -24,23 +24,27 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --web.enable-remote-write-receiver
+      - --enable-feature=native-histograms
     networks:
       - monitor_net
 
-  postgres:
-    image: postgres
-    container_name: postgres-container
-    env_file: .env
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
     ports:
-      - "5432:5432"
+      - "5000:3000"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - ./grafana/dashboards/:/etc/grafana/provisioning/dashboards/
+      - grafana_data:/var/lib/grafana
     networks:
       - monitor_net
+    depends_on:
+      - prometheus
 
 networks:
   monitor_net:
     driver: bridge
 
 volumes:
-  postgres_data:
+  grafana_data:
