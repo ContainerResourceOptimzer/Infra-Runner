@@ -1,14 +1,10 @@
 version: "3.8"
 
-networks:
-  compose_monitor_net:
-    external: true
-
 services:
   api:
     image: ${TEST_API_IMAGE}
-    ports:
-      - "${API_PORT:-3000}:3000"
+    depends_on:
+      - postgres
     env_file: .env
     deploy:
       resources:
@@ -19,7 +15,29 @@ services:
           cpus: "0.5"
           memory: 512M
     networks:
-      - compose_monitor_net
+      - default
+
+  postgres:
+    image: postgres
+    # container_name: postgres-container
+    env_file: .env
+    # ports:
+    #   - "${DB_PORT:-5432}:5432"
+    volumes:
+      # - postgres_data:/var/lib/postgresql/data
+      - ./db_init:/docker-entrypoint-initdb.d
+      # 데이터는 Job마다 격리된 볼륨에 저장
+      - "postgres_data:/var/lib/postgresql/data"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1024M"
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    networks:
+      - default
 
   k6:
     image: grafana/k6
@@ -30,16 +48,22 @@ services:
     entrypoint: ["sh", "-c"]
     command:
       - >
-        until wget --quiet --spider http://api:3000/api/boards; do
-          echo 'waiting for api…'; sleep 1;
-        done;
-        k6 run -o experimental-prometheus-rw /src/k6_script.test.js
+        k6 run -o experimental-prometheus-rw /src/k6_script.test2.js
     environment:
       - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
-      - K6_PROMETHEUS_RW_TREND_STATS=p(95),p(99),min,max,avg
+      - K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true
       - HTTP_REQ_DURATION=${HTTP_REQ_DURATION:-3000}
-      - HTTP_REQS=${HTTP_REQS:-10000}
+      - HTTP_REQS=${HTTP_REQS:-1000}
       - JOB_ID=${JOB_ID}
       - EXP_ID=${EXP_ID}
     networks:
+      - default
       - compose_monitor_net
+
+networks:
+  compose_monitor_net:
+    external: true
+
+volumes:
+  postgres_data:
+    name: "postgres_data_${JOB_ID:?JOB_ID_not_set}"

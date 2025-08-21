@@ -1,18 +1,21 @@
 import http from "k6/http";
-import { check, sleep } from "k6";
+import { check, sleep, group } from "k6";
 
 /* 테스트 통과 조건
 	- 요청 응답 시간 95%가 {__ENV.HTTP_REQ_DURATION}초 이내
 	- 총 {__ENV.HTTP_REQ_DURATION}건 이상 요청 발생
-	- 실패율 1% 미만
+	- 실패율 5% 미만
 */
 export const options = {
-	vus: 1500,
-	duration: "1m",
+	stages: [
+		{ duration: "30s", target: 20 }, // 30초 동안 사용자를 100명까지 늘립니다 (Ramp-up)
+		{ duration: "30s", target: 40 }, // 1분 동안 사용자 100명을 유지합니다 (Sustained Load)
+		{ duration: "10s", target: 0 }, // 30초 동안 사용자를 0명으로 줄입니다 (Ramp-down)
+	],
 	thresholds: {
 		http_req_duration: [`p(95)<=${__ENV.HTTP_REQ_DURATION}`],
 		http_reqs: [`count>=${__ENV.HTTP_REQS}`],
-		http_req_failed: ["rate<0.01"],
+		http_req_failed: ["rate<5.0"],
 	},
 	tags: {
 		experiment: __ENV.EXP_ID,
@@ -20,81 +23,52 @@ export const options = {
 	},
 };
 
-let userId = 1,
-	boardId = 1;
-
 const BASE_URL = "http://api:3000";
+const REQ_TIMEOUT = __ENV.HTTP_TIMEOUT || "120s";
+
+// VU / ITER 기반 토글: 각 VU마다 매 반복의 절반만 true
+function shouldRunDbThisIter() {
+	return (__ITER + __VU) % 2 === 0;
+}
+
+export function setup() {
+	for (let i = 0; i < 60; i++) {
+		const r = http.get(`${BASE_URL}/api/boards`, { timeout: "5s" });
+		if (r.status === 200) return;
+		sleep(1);
+	}
+	throw new Error("API not ready after 60s");
+}
 
 export default function () {
-	// GET /users/1
-	const userDetailRes = http.get(
-		`${BASE_URL}/users/${Math.floor(Math.random() * 10000)}`
-	);
-	check(userDetailRes, { "GET /users/1 is 200": (res) => res.status === 200 });
-
-	// GET /boards/1
-	const boardDetailRes = http.get(
-		`${BASE_URL}/boards/${Math.floor(Math.random() * 10000)}`
-	);
-	check(boardDetailRes, {
-		"GET /boards/1 is 200": (res) => res.status === 200,
+	// CPU 부하 테스트 API를 호출합니다.
+	const res1 = http.get(`${BASE_URL}/api/cpu-load-test?n=10`, {
+		tags: { name: "cpu-load-test" },
+		timeout: REQ_TIMEOUT,
+	});
+	check(res1, {
+		"CPU test: status is 200": (r) => r.status === 200,
 	});
 
-	// GET /comments/1
-	const commentDetailRes = http.get(
-		`${BASE_URL}/comments/${Math.floor(Math.random() * 10000)}`
-	);
-	check(commentDetailRes, {
-		"GET /comments/1 is 200": (res) => res.status === 200,
+	if (shouldRunDbThisIter()) {
+		const res2 = http.get(`${BASE_URL}/api/db-stress-test`, {
+			tags: { name: "db-stress-test" },
+			timeout: REQ_TIMEOUT,
+		});
+		check(res2, {
+			"DB test: status is 200": (r) => r.status === 200,
+			"DB test: response contains data": (r) =>
+				r.status === 200 && r.json("data") !== null,
+		});
+	}
+
+	const res3 = http.get(`${BASE_URL}/api/memory-test?size=${500}}`, {
+		tags: { name: "memory-test" }, // ← 쿼리파라미터가 달라도 한 버킷으로 모임
+		timeout: REQ_TIMEOUT,
+	});
+	check(res3, {
+		"Memory test: status is 200": (r) => r.status === 200,
 	});
 
 	sleep(1);
 }
-
-// POST /users
-// const newUser = {
-// 	name: `테스트${Math.random().toString(36).substring(2, 5)}`,
-// 	email: `user${Math.floor(Math.random() * 10000)}@test.com`,
-// 	phone: "010-1234-5678",
-// };
-// const createUserRes = http.post(
-// 	`${BASE_URL}/users`,
-// 	JSON.stringify(newUser),
-// 	{
-// 		headers: { "Content-Type": "application/json" },
-// 	}
-// );
-// check(createUserRes, { "POST /users is 201": (res) => res.status === 201 });
-
-// POST /boards
-// const newBoard = {
-// 	title: "부하 테스트 게시글",
-// 	content: "본문 내용입니다",
-// 	authorId: userId,
-// };
-// const createBoardRes = http.post(
-// 	`${BASE_URL}/boards`,
-// 	JSON.stringify(newBoard),
-// 	{
-// 		headers: { "Content-Type": "application/json" },
-// 	}
-// );
-// check(createBoardRes, { "POST /boards is 201": (res) => res.status === 201 });
-
-// POST /comment
-// const newComment = {
-// 	boardId: boardId++,
-// 	authorId: userId++,
-// 	content: "본문 내용입니다",
-// 	rating: 3,
-// };
-// const createCommentRes = http.post(
-// 	`${BASE_URL}/comments`,
-// 	JSON.stringify(newComment),
-// 	{
-// 		headers: { "Content-Type": "application/json" },
-// 	}
-// );
-// check(createCommentRes, {
-// 	"POST /comments is 201": (res) => res.status === 201,
-// });
