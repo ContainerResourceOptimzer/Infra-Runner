@@ -32,5 +32,7 @@ export interface JobResult {
 	expId: string;
 	jobId: string;
 	totalReqs: number;
-	duurationAvg: number;
+	durationAvg: number;
+	failedRate: number;
+	thresholdsPassed: boolean;
 }

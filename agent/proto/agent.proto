@@ -19,7 +19,9 @@ message RunJobResponse {
   string job_id = 1;
   bool success = 2;
   int32 total_reqs = 3;
-  double duuration_avg = 4;
+  double duration_avg = 4;
+  double failed_rate = 5;
+  bool thresholds_passed = 6;
 }
 
 message RunMonitorRequest {}
