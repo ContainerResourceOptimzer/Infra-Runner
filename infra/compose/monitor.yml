@@ -28,6 +28,23 @@ services:
     networks:
       - monitor_net
 
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "5000:3000"
+    volumes:
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - ./grafana/dashboards/:/etc/grafana/dashboards/
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitor_net
+    depends_on:
+      - prometheus
+
 networks:
   monitor_net:
     driver: bridge
+
+volumes:
+  grafana_data:
