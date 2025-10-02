@@ -64,15 +64,15 @@ function ensureSignalHandlersRegistered(): void {
 
 function respondWithExitCode(
 	exitCode: number,
-	currentJobId: number,
-	projectName: string,
+	jobOrder: number,
+	jobId: string,
 	jobResult: JobResult,
 	callback: GrpcCallback
 ): boolean {
 	switch (exitCode) {
 		case 0: {
 			callback(null, {
-				jobId: projectName,
+				jobId,
 				success: true,
 				totalReqs: jobResult.totalReqs,
 				durationAvg: jobResult.durationAvg,
@@ -89,11 +89,11 @@ function respondWithExitCode(
 		case 108:
 		case 110: {
 			console.warn(
-				`Experiment ${currentJobId} completed with SLA-related exit code ${exitCode}`
+				`Job ${jobId} (order ${jobOrder}) completed with SLA-related exit code ${exitCode}`
 			);
 			callback(null, {
-				jobId: projectName,
-				success: false,
+				jobId,
+				success: true,
 				totalReqs: jobResult.totalReqs,
 				durationAvg: jobResult.durationAvg,
 				failedRate: jobResult.failedRate,
@@ -103,7 +103,7 @@ function respondWithExitCode(
 		}
 		case 105: {
 			console.warn(
-				`Experiment ${currentJobId} aborted by external signal (exit ${exitCode})`
+				`Job ${jobId} aborted by external signal (exit ${exitCode})`
 			);
 			throw new Error(`k6 aborted by external signal (${exitCode})`);
 		}
@@ -115,16 +115,13 @@ function respondWithExitCode(
 			throw new Error(`k6 runtime/config error. Exit code: ${exitCode}`);
 		}
 		default: {
-			console.warn(
-				`Experiment ${currentJobId} returned unexpected exit code ${exitCode}`
-			);
+			console.warn(`Job ${jobId} returned unexpected exit code ${exitCode}`);
 			callback(null, {
-				jobId: projectName,
+				jobId,
 				success: false,
 				totalReqs: jobResult.totalReqs,
 				durationAvg: jobResult.durationAvg,
 				failedRate: jobResult.failedRate,
-				thresholdsPassed: false,
 			});
 			return true;
 		}
@@ -147,29 +144,30 @@ export const runJobHandler: handleUnaryCall<any, any> = async (
 		return;
 	}
 
-	const currentJobId = await getNextJobId();
-	const projectName = `job-${currentJobId}`;
+	const jobOrder = await getNextJobId(expId);
+	const jobId = `job-${jobOrder}`;
+	const composeProject = `job-${expId}-${jobOrder}`;
 	const env: NodeJS.ProcessEnv = {
 		...process.env,
 		CPU: String(cpu),
 		MEM: String(mem),
 		EXP_ID: expId,
-		JOB_ID: projectName,
+		JOB_ID: jobId,
 		TEST_API_IMAGE: experimentConfig.testApiImage,
 		HTTP_REQ_DURATION: String(experimentConfig.httpReqDuration),
 		HTTP_REQS: String(experimentConfig.httpReqs),
 	};
 
-	console.log(`Run Experiment(${expId}): [${currentJobId} (${cpu}, ${mem})]`);
+	console.log(`Run Experiment(${expId}): [${jobId} (${cpu}, ${mem})]`);
 	const compose = (cmd: string) =>
 		sh(
-			`docker compose --compatibility -f ${process.env.DEFAULT_COMPOSE_FILE} -p ${projectName} ${cmd}`,
+			`docker compose --compatibility -f ${process.env.DEFAULT_COMPOSE_FILE} -p ${composeProject} ${cmd}`,
 			{ env }
 		);
 
 	ensureSignalHandlersRegistered();
-	activeJobs.add(projectName);
-	jobEnvs.set(projectName, env);
+	activeJobs.add(composeProject);
+	jobEnvs.set(composeProject, env);
 
 	let stackStarted = false;
 	let responded = false;
@@ -189,23 +187,23 @@ export const runJobHandler: handleUnaryCall<any, any> = async (
 			throw new Error(`Unable to parse docker wait exit code: ${code}`);
 
 		const jobResult: JobResult =
-			await httpServiceHandlers.queryJobResultFromPrometheus(
-				expId,
-				projectName
-			);
+			await httpServiceHandlers.queryJobResultFromPrometheus(expId, jobId);
 
 		responded = respondWithExitCode(
 			exitCode,
-			currentJobId,
-			projectName,
+			jobOrder,
+			jobId,
 			jobResult,
 			callback
 		);
 	} catch (e: any) {
-		console.error(`Experiment ${currentJobId} error:`, e.stderr || e.message);
+		console.error(
+			`Experiment ${expId} job ${jobId} error:`,
+			e.stderr || e.message
+		);
 		if (!responded)
 			callback(null, {
-				jobId: projectName,
+				jobId,
 				success: false,
 				totalReqs: 0,
 				durationAvg: 0,
@@ -216,18 +214,24 @@ export const runJobHandler: handleUnaryCall<any, any> = async (
 		const cleanup = async () => {
 			try {
 				await compose("down -v");
-				console.log(`[${currentJobId}] stack cleaned up`);
+				console.log(`[${jobId}] stack cleaned up`);
 			} catch (cleanupError: any) {
 				const message = cleanupError.stderr || cleanupError.message;
 				if (stackStarted)
-					console.error(`Experiment ${currentJobId} cleanup error:`, message);
+					console.error(
+						`Experiment ${expId} job ${jobId} cleanup error:`,
+						message
+					);
 				else
-					console.debug(`Experiment ${currentJobId} cleanup skipped:`, message);
+					console.debug(
+						`Experiment ${expId} job ${jobId} cleanup skipped:`,
+						message
+					);
 			}
 		};
 
 		await cleanup();
-		activeJobs.delete(projectName);
-		jobEnvs.delete(projectName);
+		activeJobs.delete(composeProject);
+		jobEnvs.delete(composeProject);
 	}
 };

@@ -13,8 +13,17 @@ export const jobEnvs: Map<string, NodeJS.ProcessEnv> = new Map<
 >();
 
 const jobIdMutex: Mutex = new Mutex();
-let jobIdCounter: number = 1;
+const jobIdCounters: Map<string, number> = new Map<string, number>();
 
-export async function getNextJobId(): Promise<number> {
-	return jobIdMutex.runExclusive(() => jobIdCounter++);
+export async function getNextJobId(expId: string): Promise<number> {
+	return jobIdMutex.runExclusive(() => {
+		const next = (jobIdCounters.get(expId) ?? 0) + 1;
+		jobIdCounters.set(expId, next);
+		return next;
+	});
+}
+
+export function setExperimentConfig(expId: string, config: ExperimentConfig): void {
+	experimentConfigs.set(expId, config);
+	jobIdCounters.delete(expId);
 }

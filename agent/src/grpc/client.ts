@@ -4,7 +4,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 
 import { runJobHandler } from "./handlers/runJob.js";
-import { experimentConfigs } from "./state.js";
+import { setExperimentConfig } from "./state.js";
 
 const sh = promisify(exec);
 
@@ -34,7 +34,7 @@ export const grpcServiceHandlers = {
 	initExperimentConfigs: async (call: any, callback: any) => {
 		const { expId, testApiImage, httpReqDuration, httpReqs } = call.request;
 		console.log(expId);
-		experimentConfigs.set(expId, { testApiImage, httpReqDuration, httpReqs });
+		setExperimentConfig(expId, { testApiImage, httpReqDuration, httpReqs });
 		console.log(`Init Experiment(${expId}) Configs.`);
 
 		callback(null, {
