@@ -6,36 +6,29 @@ services:
     depends_on:
       - postgres
     env_file: .env
-    deploy:
-      resources:
-        limits:
-          cpus: "${CPU:-1.0}"
-          memory: "${MEM:-1024M}"
-        reservations:
-          cpus: "0.5"
-          memory: 512M
+    cpus: "${CPU:-1.0}"
+    mem_limit: "${MEM:-1024M}"
+    memswap_limit: "${MEM:-1024M}"   # 스왑 금지 (mem==memswap)
     networks:
       - default
 
   postgres:
     image: postgres
-    # container_name: postgres-container
     env_file: .env
-    # ports:
-    #   - "${DB_PORT:-5432}:5432"
     volumes:
-      # - postgres_data:/var/lib/postgresql/data
       - ./db_init:/docker-entrypoint-initdb.d
-      # 데이터는 Job마다 격리된 볼륨에 저장
       - "postgres_data:/var/lib/postgresql/data"
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: "1024M"
-        reservations:
-          cpus: "0.5"
-          memory: 512M
+    cpus: 0.5
+    mem_limit: 512M
+    memswap_limit: 512M
+    blkio_config:
+      weight: 500
+      device_read_bps:
+        - path: /dev/sda
+          rate: "50mb"
+      device_write_bps:
+        - path: /dev/sda
+          rate: "20mb"
     networks:
       - default
 
@@ -45,10 +38,13 @@ services:
       - api
     volumes:
       - ./testharness/:/src
+    cpus: 0.5
+    mem_limit: 256M
+    memswap_limit: 256M
     entrypoint: ["sh", "-c"]
     command:
       - >
-        k6 run -o experimental-prometheus-rw /src/k6_script.test2.js
+        k6 run -o experimental-prometheus-rw /src/k6_script.test.js
     environment:
       - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
       - K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true
