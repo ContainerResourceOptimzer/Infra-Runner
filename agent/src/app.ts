@@ -9,7 +9,7 @@ import { dirname, join } from "path";
 
 import { grpcServiceHandlers } from "./grpc/client.js";
 
-dotenv.config();
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), "../.env") });
 
 // ESM 환경에서 __dirname 정의
 const __filename = fileURLToPath(import.meta.url);
