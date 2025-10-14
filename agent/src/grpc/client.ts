@@ -10,10 +10,9 @@ export const grpcServiceHandlers = {
 
 	initExperimentConfigs: async (call: any, callback: any) => {
 		const { expId, testApiImage, httpReqDuration, httpReqs } = call.request;
-		console.log(expId);
-		setExperimentConfig(expId, { testApiImage, httpReqDuration, httpReqs });
-		console.log(`Init Experiment(${expId}) Configs.`);
 
+		console.log(`Init Experiment(${expId}) Configs.`);
+		setExperimentConfig(expId, { testApiImage, httpReqDuration, httpReqs });
 		callback(null, {
 			success: true,
 			message: "Init Experiment Configs.",
