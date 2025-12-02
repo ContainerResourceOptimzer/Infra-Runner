@@ -38,23 +38,57 @@ export const httpServiceHandlers = {
 	): Promise<JobResult> => {
 		const query = `
 				label_replace(
-					sum(k6_http_reqs_total{experiment="${expId}", container="${jobId}"}), 
-					"what", "http_reqs_total", "", ""
+					sum(max_over_time(k6_http_reqs_total{experiment="${expId}", container="${jobId}"}[${timeLen}])),
+					"what",
+					"http_reqs_total",
+					"",
+					""
 				)
 				OR
 				label_replace(
-					histogram_quantile(0.95, sum by (le) (rate(k6_http_req_duration_seconds{experiment="${expId}", container="${jobId}"}[${timeLen}]))), 
-					"what", "http_req_duration_p95", "", ""
+					histogram_quantile(
+						0.95,
+						sum(
+							increase(
+								k6_http_req_duration_seconds{
+									experiment="${expId}",
+									container="${jobId}"
+								}[${timeLen}]
+							)
+						)
+					),
+					"what",
+					"http_req_duration_p95",
+					"",
+					""
 				)
 				OR
 				label_replace(
-					(sum(increase(k6_http_reqs_total{experiment="${expId}", container="${jobId}"}[${timeLen}]) 
-					* 
-					avg_over_time(k6_http_req_failed_rate{experiment="${expId}", container="${jobId}"}[${timeLen}])) 
-					/ 
-					sum(increase(k6_http_reqs_total{experiment="${expId}", container="${jobId}"}[${timeLen}]))) * 100,
-					"what", "http_req_failed_rate", "", ""
-					)
+					(
+						sum(
+							max_over_time(
+								k6_http_reqs_total{
+									experiment="${expId}",
+									container="${jobId}",
+									expected_response="false"
+								}[${timeLen}]
+							)
+						)
+						/
+						sum(
+							max_over_time(
+								k6_http_reqs_total{
+									experiment="${expId}",
+									container="${jobId}"
+								}[${timeLen}]
+							)
+						)
+					) * 100,
+					"what",
+					"http_req_failed_rate",
+					"",
+					""
+				)
 		`;
 		const response = await queryPrometheus(query);
 		let totalReqs = 0;

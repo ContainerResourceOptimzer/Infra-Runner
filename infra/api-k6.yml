@@ -54,10 +54,10 @@ services:
       - EXP_ID=${EXP_ID}
     networks:
       - default
-      - compose_monitor_net
+      - infra_monitor_net
 
 networks:
-  compose_monitor_net:
+  infra_monitor_net:
     external: true
 
 volumes:

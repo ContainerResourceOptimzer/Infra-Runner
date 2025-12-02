@@ -1,117 +1,118 @@
 {
-  "__inputs": [],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    }
-  ],
-  "annotations": {
-    "list": []
-  },
-  "editable": true,
-  "gnetId": null,
-  "graphTooltip": 0,
-  "id": null,
-  "links": [],
-  "panels": [
-    {
-      "title": "HTTP Requests",
-      "type": "graph",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "id": 2,
-      "targets": [
-        {
-          "expr": "sum(k6_http_reqs_total{experiment=\"$expId\", container=\"$jobId\"})",
-          "legendFormat": "requests/s",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "title": "HTTP Request Duration (p95)",
-      "type": "graph",
-      "datasource": "Prometheus",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 4,
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(k6_http_req_duration_seconds{experiment=\"$expId\", container=\"$jobId\"}[5m])))",
-          "legendFormat": "p95 duration (ms)",
-          "refId": "A"
-        }
-      ]
-    }
-  ],
-  "schemaVersion": 16,
-  "style": "dark",
-  "tags": [
-    "k6"
-  ],
+  "title": "Optimizer SLA Overview",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "tags": ["optimizer", "k6"],
   "templating": {
     "list": [
+      {
+        "name": "exp",
+        "label": "Experiment",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(k6_http_reqs_total, experiment)",
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "job",
+        "label": "Job Container",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(k6_http_reqs_total{experiment=\"$exp\"}, container)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "table",
+      "title": "Job SLA Summary",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 12 },
+      "datasource": "Prometheus",
+      "transformations": [
         {
-            "name": "expId",
-            "label": "Experiment ID",
-            "query": "label_values(k6_http_reqs_total, experiment)",
-            "type": "query",
-            "datasource": "Prometheus",
-            "multi": false,
-            "includeAll": false
+          "id": "joinByField",
+          "options": { "byField": "container" }
         },
         {
-            "name": "jobId",
-            "label": "Job ID",
-            "query": "label_values(k6_http_reqs_total{experiment=\"$expId\"}, container)",
-            "type": "query",
-            "datasource": "Prometheus",
-            "multi": false,
-            "includeAll": false
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "__name__": true,
+              "Time": true,
+              "expected_response": true,
+              "experiment": true,
+              "group": true,
+              "method": true,
+              "name": true,
+              "proto": true,
+              "scenario": true,
+              "status": true,
+              "url": true,
+              "error_code": true
+            },
+            "renameByName": {
+              "container": "Job",
+              "Value": "Requests",
+              "Value #A": "Requests",
+              "Value #B": "p95 (s)",
+              "Value #C": "Failed %"
+            },
+            "indexByName": {
+              "Job": 0,
+              "Requests": 1,
+              "p95 (s)": 2,
+              "Failed %": 3
+            }
+          }
         }
-    ]
-  },
-  "time": {
-    "from": "now-5m",
-    "to": "now"
-  },
-  "timepicker": {
-    "refresh_intervals": [
-      "5s",
-      "10s",
-      "30s"
-    ],
-    "time_options": [
-      "5m",
-      "15m",
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d",
-      "30d"
-    ]
-  },
-  "timezone": "",
-  "title": "k6 Load Testing",
-  "version": 0
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"}[$__range]))",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (container) (increase(k6_http_req_duration_seconds{experiment=\"$exp\", container=~\"$job\"}[$__range])))",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "C",
+          "expr": "sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\", expected_response=\"false\"}[$__range])) / sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"}[$__range])) * 100",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byFrameRefID", "options": "B" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "displayName", "value": "p95 (s)" }
+            ]
+          },
+          {
+            "matcher": { "id": "byFrameRefID", "options": "C" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "displayName", "value": "Failed %" }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
