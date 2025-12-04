@@ -34,7 +34,7 @@
     {
       "type": "table",
       "title": "Job SLA Summary",
-      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 12 },
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
       "datasource": "Prometheus",
       "transformations": [
         {
@@ -60,16 +60,12 @@
             },
             "renameByName": {
               "container": "Job",
-              "Value": "Requests",
-              "Value #A": "Requests",
-              "Value #B": "p95 (s)",
-              "Value #C": "Failed %"
-            },
-            "indexByName": {
-              "Job": 0,
-              "Requests": 1,
-              "p95 (s)": 2,
-              "Failed %": 3
+              "Value #A": "Start Time",
+              "Value #B": "CPU Limit",
+              "Value #C": "Mem Limit",
+              "Value #D": "Requests",
+              "Value #E": "p95 (s)",
+              "Value #F": "Failed %"
             }
           }
         }
@@ -77,18 +73,36 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"}[$__range]))",
+          "expr": "min by (container) (min_over_time(timestamp(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"})[$__range:1m])) * 1000",
           "instant": true,
           "format": "table"
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (container) (increase(k6_http_req_duration_seconds{experiment=\"$exp\", container=~\"$job\"}[$__range])))",
+          "expr": "max by (container) (label_replace(max_over_time(container_spec_cpu_quota{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}[$__range]) / max_over_time(container_spec_cpu_period{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}[$__range]), \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\"))",
           "instant": true,
           "format": "table"
         },
         {
           "refId": "C",
+          "expr": "max by (container) (label_replace(max_over_time(container_spec_memory_limit_bytes{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}[$__range]), \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) / 1048576",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "D",
+          "expr": "sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"}[$__range]))",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "E",
+          "expr": "histogram_quantile(0.95, sum by (container) (increase(k6_http_req_duration_seconds{experiment=\"$exp\", container=~\"$job\"}[$__range])))",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "refId": "F",
           "expr": "sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\", expected_response=\"false\"}[$__range])) / sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"}[$__range])) * 100",
           "instant": true,
           "format": "table"
@@ -98,20 +112,171 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byFrameRefID", "options": "B" },
+            "matcher": { "id": "byName", "options": "Start Time" },
             "properties": [
-              { "id": "unit", "value": "s" },
-              { "id": "displayName", "value": "p95 (s)" }
+              { "id": "unit", "value": "dateTimeAsIso" }
             ]
           },
           {
-            "matcher": { "id": "byFrameRefID", "options": "C" },
+            "matcher": { "id": "byName", "options": "p95 (s)" },
             "properties": [
-              { "id": "unit", "value": "percent" },
-              { "id": "displayName", "value": "Failed %" }
+              { "id": "unit", "value": "s" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Failed %" },
+            "properties": [
+              { "id": "unit", "value": "percent" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "CPU Limit" },
+            "properties": [
+              { "id": "unit", "value": "none" },
+              { "id": "decimals", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Mem Limit" },
+            "properties": [
+              { "id": "unit", "value": "MiB" }
             ]
           }
         ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU Usage Over Time",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (container) (label_replace(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}[1m]), \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) and on(container) sum by (container) (k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"})",
+          "legendFormat": "{{container}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory Usage Over Time",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (container) (label_replace(container_memory_usage_bytes{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}, \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) and on(container) sum by (container) (k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"})",
+          "legendFormat": "{{container}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network I/O",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (container) (label_replace(rate(container_network_receive_bytes_total{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}[1m]), \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) and on(container) sum by (container) (k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"})",
+          "legendFormat": "{{container}} RX"
+        },
+        {
+          "refId": "B",
+          "expr": "max by (container) (label_replace(rate(container_network_transmit_bytes_total{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}[1m]), \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) and on(container) sum by (container) (k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"})",
+          "legendFormat": "{{container}} TX"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU Throttling",
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (container) (label_replace(rate(container_cpu_cfs_throttled_seconds_total{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}[1m]), \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) and on(container) sum by (container) (k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"})",
+          "legendFormat": "{{container}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Total Requests",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"}[$__range]))",
+          "legendFormat": "{{container}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "p95 Latency",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (container) (increase(k6_http_req_duration_seconds{experiment=\"$exp\", container=~\"$job\"}[$__range])))",
+          "legendFormat": "{{container}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Failure Rate",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\", expected_response=\"false\"}[$__range])) / sum by (container) (max_over_time(k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"}[$__range])) * 100",
+          "legendFormat": "{{container}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        }
       }
     }
   ]
