@@ -147,8 +147,46 @@
     },
     {
       "type": "timeseries",
-      "title": "CPU Usage Over Time",
+      "title": "CPU Saturation",
       "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by (container) (label_replace(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}[1m]), \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) / max by (container) (label_replace(container_spec_cpu_quota{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"} / container_spec_cpu_period{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}, \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) * 100) and on(container) sum by (container) (k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"})",
+          "legendFormat": "{{container}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory Saturation",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by (container) (label_replace(container_memory_usage_bytes{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}, \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) / max by (container) (label_replace(container_spec_memory_limit_bytes{container_label_com_docker_compose_project=~\"job-$exp-.*\", container_label_com_docker_compose_service=\"api\"}, \"container\", \"job-$1\", \"container_label_com_docker_compose_project\", \".*-(\\\\d+)\")) * 100) and on(container) sum by (container) (k6_http_reqs_total{experiment=\"$exp\", container=~\"$job\"})",
+          "legendFormat": "{{container}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU Usage Over Time",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -166,7 +204,7 @@
     {
       "type": "timeseries",
       "title": "Memory Usage Over Time",
-      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -184,7 +222,7 @@
     {
       "type": "timeseries",
       "title": "Network I/O",
-      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -207,7 +245,7 @@
     {
       "type": "timeseries",
       "title": "CPU Throttling",
-      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
