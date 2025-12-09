@@ -27,14 +27,50 @@
         "includeAll": true,
         "multi": true,
         "allValue": ".*"
+      },
+      {
+        "name": "sla_latency",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(k6_http_reqs_total{experiment=\"$exp\"}, sla_latency)",
+        "refresh": 2,
+        "hide": 2,
+        "sort": 1
+      },
+      {
+        "name": "sla_failure",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(k6_http_reqs_total{experiment=\"$exp\"}, sla_failure)",
+        "refresh": 2,
+        "hide": 2,
+        "sort": 1
+      },
+      {
+        "name": "sla_reqs",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(k6_http_reqs_total{experiment=\"$exp\"}, sla_reqs)",
+        "refresh": 2,
+        "hide": 2,
+        "sort": 1
       }
     ]
   },
   "panels": [
     {
+      "type": "text",
+      "title": "SLA Targets",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 3 },
+      "options": {
+        "mode": "markdown",
+        "content": "### 🎯 SLA Targets\n**Total Reqs**: > ${sla_reqs} | **p95 Latency**: < ${sla_latency}ms  |  **Failure Rate**: < ${sla_failure}%"
+      }
+    },
+    {
       "type": "table",
       "title": "Job SLA Summary",
-      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "gridPos": { "x": 0, "y": 11, "w": 24, "h": 8 },
       "datasource": "Prometheus",
       "transformations": [
         {
@@ -148,7 +184,7 @@
     {
       "type": "timeseries",
       "title": "CPU Saturation",
-      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 19, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -167,7 +203,7 @@
     {
       "type": "timeseries",
       "title": "Memory Saturation",
-      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 19, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -186,7 +222,7 @@
     {
       "type": "timeseries",
       "title": "CPU Usage Over Time",
-      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 27, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -204,7 +240,7 @@
     {
       "type": "timeseries",
       "title": "Memory Usage Over Time",
-      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 27, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -222,7 +258,7 @@
     {
       "type": "timeseries",
       "title": "Network I/O",
-      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 35, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -245,7 +281,7 @@
     {
       "type": "timeseries",
       "title": "CPU Throttling",
-      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 35, "w": 12, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -263,7 +299,7 @@
     {
       "type": "barchart",
       "title": "Total Requests",
-      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "gridPos": { "x": 0, "y": 3, "w": 8, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -282,7 +318,7 @@
     {
       "type": "barchart",
       "title": "p95 Latency",
-      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+      "gridPos": { "x": 8, "y": 3, "w": 8, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {
@@ -301,7 +337,7 @@
     {
       "type": "barchart",
       "title": "Failure Rate",
-      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "gridPos": { "x": 16, "y": 3, "w": 8, "h": 8 },
       "datasource": "Prometheus",
       "targets": [
         {

@@ -50,6 +50,7 @@ services:
       - K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true
       - HTTP_REQ_DURATION=${HTTP_REQ_DURATION:-3000}
       - HTTP_REQS=${HTTP_REQS:-1000}
+      - HTTP_FAILED_RATE=${HTTP_FAILED_RATE:-5.0}
       - JOB_ID=${JOB_ID}
       - EXP_ID=${EXP_ID}
     networks:
