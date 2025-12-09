@@ -6,9 +6,9 @@ services:
     depends_on:
       - postgres
     env_file: .env
-    cpus: "${CPU:-1.0}"
-    mem_limit: "${MEM:-1024M}"
-    memswap_limit: "${MEM:-1024M}"   # 스왑 금지 (mem==memswap)
+    cpus: "${CPU:-0.5}"
+    mem_limit: "${MEM:-512M}"
+    memswap_limit: "${MEM:-512M}" # 스왑 금지 (mem==memswap)
     networks:
       - default
 
@@ -38,7 +38,7 @@ services:
       - api
     volumes:
       - ./testharness/:/src
-    cpus: 0.5
+    cpus: 0.25
     mem_limit: 256M
     memswap_limit: 256M
     entrypoint: ["sh", "-c"]
@@ -50,14 +50,15 @@ services:
       - K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true
       - HTTP_REQ_DURATION=${HTTP_REQ_DURATION:-3000}
       - HTTP_REQS=${HTTP_REQS:-1000}
+      - HTTP_FAILED_RATE=${HTTP_FAILED_RATE:-5.0}
       - JOB_ID=${JOB_ID}
       - EXP_ID=${EXP_ID}
     networks:
       - default
-      - compose_monitor_net
+      - infra_monitor_net
 
 networks:
-  compose_monitor_net:
+  infra_monitor_net:
     external: true
 
 volumes:

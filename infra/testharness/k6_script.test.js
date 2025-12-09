@@ -4,7 +4,7 @@ import { check, sleep } from "k6";
 /* 테스트 통과 조건
 	- 요청 응답 시간 95%가 {__ENV.HTTP_REQ_DURATION}초 이내
 	- 총 {__ENV.HTTP_REQ_DURATION}건 이상 요청 발생
-	- 실패율 5% 미만
+	- 실패율 {__ENV.HTTP_FAILED_RATE}% 미만
 */
 export const options = {
 	stages: [
@@ -15,11 +15,14 @@ export const options = {
 	thresholds: {
 		http_req_duration: [`p(95)<=${__ENV.HTTP_REQ_DURATION}`],
 		http_reqs: [`count>=${__ENV.HTTP_REQS}`],
-		http_req_failed: ["rate<5.0"],
+		http_req_failed: [`rate<${__ENV.HTTP_FAILED_RATE || 5.0}`],
 	},
 	tags: {
 		experiment: __ENV.EXP_ID,
 		container: __ENV.JOB_ID,
+		sla_latency: __ENV.HTTP_REQ_DURATION,
+		sla_failure: __ENV.HTTP_FAILED_RATE || "5.0",
+		sla_reqs: __ENV.HTTP_REQS,
 	},
 };
 

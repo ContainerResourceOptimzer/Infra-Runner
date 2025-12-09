@@ -156,6 +156,7 @@ export const runJobHandler: handleUnaryCall<any, any> = async (
 		TEST_API_IMAGE: experimentConfig.testApiImage,
 		HTTP_REQ_DURATION: String(experimentConfig.httpReqDuration),
 		HTTP_REQS: String(experimentConfig.httpReqs),
+		HTTP_FAILED_RATE: String(experimentConfig.httpFailedRate),
 	};
 
 	console.log(`Run Experiment(${expId}): [${jobId} (${cpu}, ${mem})]`);

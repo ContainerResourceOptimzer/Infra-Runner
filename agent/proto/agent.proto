@@ -36,6 +36,7 @@ message ExperimentConfigsRequest {
   string test_api_image = 2;
   int32 http_req_duration = 3;
   int32 http_reqs = 4;
+  double http_failed_rate = 5;
 }
 
 message ExperimentConfigsResponse {
